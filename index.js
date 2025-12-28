@@ -1,15 +1,14 @@
 const mineflayer = require('mineflayer')
 const express = require('express')
-
 const config = require('./config.json')
 
-/* ---------- HTTP SERVER ---------- */
+/* ---------------- HTTP SERVER ---------------- */
 const app = express()
 const PORT = process.env.PORT || 3000
 let bot = null
 
 app.get('/', (req, res) => {
-  res.send('🟢 Minecraft AFK Bot (Advanced Anti-AFK)')
+  res.send('🟢 Minecraft AFK Bot is running')
 })
 
 app.get('/status', (req, res) => {
@@ -20,47 +19,39 @@ app.get('/status', (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`🌐 HTTP server running on ${PORT}`)
+  console.log(`🌐 HTTP server running on port ${PORT}`)
 })
 
-/* ---------- ANTI-AFK LOGIC ---------- */
-function random (min, max) {
+/* ---------------- SAFE ANTI-AFK ---------------- */
+function rand(min, max) {
   return Math.random() * (max - min) + min
 }
 
-function humanLook () {
-  if (!bot?.entity) return
-  const yaw = random(-Math.PI, Math.PI)
-  const pitch = random(-0.3, 0.3)
-  bot.look(yaw, pitch, true)
-}
-
-function smallMove () {
+function safeAntiAFK() {
   if (!bot?.entity) return
 
-  const actions = ['forward', 'back', 'left', 'right']
-  const action = actions[Math.floor(Math.random() * actions.length)]
+  // Human-like look movement (SAFE)
+  bot.look(
+    rand(-Math.PI, Math.PI),
+    rand(-0.25, 0.25),
+    true
+  )
 
-  bot.setControlState(action, true)
+  // Sneak sometimes
+  if (Math.random() > 0.7) {
+    bot.setControlState('sneak', true)
+    setTimeout(() => bot.setControlState('sneak', false), 800)
+  }
 
-  if (Math.random() > 0.7) bot.setControlState('sneak', true)
-  if (Math.random() > 0.85) bot.setControlState('jump', true)
-
-  setTimeout(() => {
-    bot.clearControlStates()
-  }, random(400, 900))
+  // Small jump (safe)
+  if (Math.random() > 0.85) {
+    bot.setControlState('jump', true)
+    setTimeout(() => bot.setControlState('jump', false), 300)
+  }
 }
 
-function antiAFKLoop () {
-  setTimeout(() => {
-    humanLook()
-    smallMove()
-    antiAFKLoop()
-  }, random(4000, 9000)) // human delay
-}
-
-/* ---------- BOT ---------- */
-function startBot () {
+/* ---------------- BOT ---------------- */
+function startBot() {
   console.log('🔄 Starting bot...')
 
   bot = mineflayer.createBot({
@@ -72,8 +63,11 @@ function startBot () {
   })
 
   bot.once('spawn', () => {
-    console.log('✅ Bot spawned')
-    antiAFKLoop()
+    console.log('✅ Bot spawned safely')
+
+    setInterval(() => {
+      safeAntiAFK()
+    }, rand(5000, 9000))
   })
 
   bot.on('end', () => {
@@ -82,7 +76,7 @@ function startBot () {
   })
 
   bot.on('error', err => {
-    console.log('⚠️ Error:', err.message)
+    console.log('⚠️ Bot error:', err.message)
   })
 }
 
